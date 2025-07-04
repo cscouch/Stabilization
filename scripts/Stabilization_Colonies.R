@@ -9,8 +9,10 @@ lu<-read.csv("T:/Benthic/Data/Lookup Tables/Genus_lookup.csv")
 
 
 #LOAD DATA
-colony<-read_csv(here("data","Stablization_Colony_T0-6monthPO.csv")) #use this for all ggsave, write
-colony<- colony %>%
+colony_raw<-read_csv(here("data","Stablization_Colony_T0-6monthPO.csv")) #use this for all ggsave, write
+lu<-read_csv(here("data","Genus_lookup.csv")) #use this for all ggsave, write
+
+colony<- colony_raw %>%
   rename(SPCODE=Species) %>%
   #mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0', Baseline = 'Baseline', T1_6months =  'T1 (6months)'))%>%
   left_join(lu)
@@ -40,12 +42,26 @@ table(colony.new$Survey_Period,colony.new$Treatment)
 
 #Remove reference site data and calculate abudance/plot
 col.tot<-as.data.frame(colony.new %>% 
-  filter(Treatment!="Reference")   %>%                      
+  filter(Treatment!="Reference")   %>%
+  filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
   group_by(Survey_Period, Treatment,Plot_ID) %>% 
   summarise(n = n()))
 
 View(col.tot)
 
+
+#Bayesian 2 way anova #Rhat and ESS 1st pass at diagnostics- did models converge reead up on additional dianotics
+mod1<-brm(n~Treatment*Survey_Period + (1|Plot_ID),data=col.tot)
+#plot(conditional_effects(mod1)) #plots with effect sizes, plot raw data in the background with low alpha
+#try log transformation
+#model slection 
+#loo(mod1, mod2) - report elpd_loo
+#plot density plot of each treatment- look in tidybayes
+
+ranef(mod1)#plot effects
+#modify the map to color by intercept
+#standardize all response variables on z scores to be able to compare across metrics 
+#standardized effect size for each metrics in one plot with standardized data then 
 
 #Save file for Nyssa to use for Bayasian analysis- remove reference site and post outplant data
 for.nyssa<-as.data.frame(colony.new %>% 
