@@ -1,19 +1,15 @@
 #Script summarizes wild colonies on experimental and reference site
-
-rm(list=ls())
-dir = Sys.info()[7]
-setwd(paste0("C:/Users/", dir, "/Documents/GitHub/Restoration/Stabilization/"))
-lu<-read.csv("T:/Benthic/Data/Lookup Tables/Genus_lookup.csv")
-
-library(dplyr)
-library(ggplot2)
+#manually restart R
+library(tidyverse)
+library(here)
 library(ggridges)
-library(tidyr)
-
+library(brms)
+library(tidybayes)
+lu<-read.csv("T:/Benthic/Data/Lookup Tables/Genus_lookup.csv")
 
 
 #LOAD DATA
-colony<-read.csv("data/Stablization_Colony_T0-6monthPO.csv")
+colony<-read_csv(here("data","Stablization_Colony_T0-6monthPO.csv")) #use this for all ggsave, write
 colony<- colony %>%
   rename(SPCODE=Species) %>%
   #mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0', Baseline = 'Baseline', T1_6months =  'T1 (6months)'))%>%
