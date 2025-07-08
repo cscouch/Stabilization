@@ -5,7 +5,6 @@ library(here)
 library(ggridges)
 library(brms)
 library(tidybayes)
-lu<-read.csv("T:/Benthic/Data/Lookup Tables/Genus_lookup.csv")
 
 
 #LOAD DATA
@@ -42,8 +41,8 @@ table(colony.new$Survey_Period,colony.new$Treatment)
 
 #Remove reference site data and calculate abudance/plot
 col.tot<-as.data.frame(colony.new %>% 
-  filter(Treatment!="Reference")   %>%
-  filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
+  #filter(Treatment!="Reference")   %>%
+  #filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
   group_by(Survey_Period, Treatment,Plot_ID) %>% 
   summarise(n = n()))
 
