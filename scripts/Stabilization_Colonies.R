@@ -39,17 +39,21 @@ colony.new<-rbind(pi.c,t1pre.c,colony)
 
 table(colony.new$Survey_Period,colony.new$Treatment)
 
-#Remove reference site data and calculate abudance/plot
-col.tot<-as.data.frame(colony.new %>% 
-  #filter(Treatment!="Reference")   %>%
-  #filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
-  group_by(Survey_Period, Treatment,Plot_ID) %>% 
-  summarise(n = n()))
 
-View(col.tot)
+
+
+# Bayesian ----------------------------------------------------------------
 
 
 #Bayesian 2 way anova #Rhat and ESS 1st pass at diagnostics- did models converge reead up on additional dianotics
+#Remove reference site data and calculate abudance/plot
+col.tot<-as.data.frame(colony.new %>% 
+                         #filter(Treatment!="Reference")   %>%
+                         #filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
+                         group_by(Survey_Period, Treatment,Plot_ID) %>% 
+                         summarise(n = n()))
+
+
 mod1<-brm(n~Treatment*Survey_Period + (1|Plot_ID),data=col.tot)
 #plot(conditional_effects(mod1)) #plots with effect sizes, plot raw data in the background with low alpha
 #try log transformation
@@ -61,16 +65,6 @@ ranef(mod1)#plot effects
 #modify the map to color by intercept
 #standardize all response variables on z scores to be able to compare across metrics 
 #standardized effect size for each metrics in one plot with standardized data then 
-
-#Save file for Nyssa to use for Bayasian analysis- remove reference site and post outplant data
-for.nyssa<-as.data.frame(colony.new %>% 
-                         filter(Treatment!="Reference")   %>%
-                         filter(Survey_Period!="T1_6mo_postoutplant")   %>%
-                         group_by(Survey_Period, Treatment,Plot_ID) %>% 
-                         summarise(colony_abun = n()))
-
-#save file
-write.csv(for.nyssa,file="data/WildColony_byPlot_forNyssa.csv",row.names = FALSE)
 
 #Stats
 # library(car)
@@ -107,18 +101,37 @@ write.csv(for.nyssa,file="data/WildColony_byPlot_forNyssa.csv",row.names = FALSE
 # 1-logLik(mod1)/logLik(nullmod) # Calculate McFadden's R2 =0.3081
 
 
+#Remove reference site data and calculate abudance/plot
+col.tot<-as.data.frame(colony.new %>% 
+                         filter(Treatment!="Reference")   %>%
+                         filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
+                         group_by(Survey_Period, Treatment,Plot_ID) %>% 
+                         summarise(n = n()))
+
+View(col.tot)
+
+
 col.tot$Treatment <- factor(col.tot$Treatment, levels = c("Control", "Mesh", "Boulder"))
 col.tot$Survey_Period <- factor(col.tot$Survey_Period, levels = c("Baseline","T0_Post_Installation","T1_6mo_preoutplant","T1_6mo_postoutplant"))
 
-ggplot(col.tot,aes(Treatment,n))+
-  geom_boxplot(aes(fill=Survey_Period))+
-  #geom_jitter(width = 0.2, height = 0, size = 1, alpha = 0.8)
-  labs(x = "Treatment", y = "Colony Abundance")+
-  theme_minimal() +
+ggplot(col.tot, aes(x = Treatment, y = n, fill = Survey_Period)) +
+  geom_boxplot(position = position_dodge(width = 0.6), outlier.shape = NA) +
+  geom_jitter(color = "#4D4D4D",
+              position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.6),
+              size = 1, alpha = 0.8) +
+  labs(x = "Treatment", y = "Colony Abundance") +
+  theme_bw() +
   theme(
+    axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
     axis.text = element_text(size = 12),
     axis.title = element_text(size = 14, face = "bold"),
-    legend.title = element_blank()  )
+    legend.title = element_blank(),
+    legend.position = "bottom"
+  )
 
 
 

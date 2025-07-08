@@ -59,20 +59,24 @@ col.tot %>%
   filter(Survey_Period %in% c("Baseline","T1_6mo_preoutplant")) %>%
   mutate(Survey_Period = recode(Survey_Period, Baseline = 'Baseline', T1_6mo_preoutplant =  'T1 (6months)'))%>%
   filter(T_SP !="Baseline_Reference") %>%
-ggplot(.,aes(Treatment,n))+
-  geom_boxplot(aes(fill=Survey_Period))+
-  labs(x = "Treatment", y = "Urchin Abundance")+
-theme_bw() +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = 12),
-        axis.title = element_text(size = 14, face = "bold"),
-        legend.title = element_blank(),  
-        legend.position="bottom") 
-
+ggplot(., aes(x = Treatment, y = n, fill = Survey_Period)) +
+  geom_boxplot(position = position_dodge(width = 0.6), outlier.shape = NA) +
+  geom_jitter(color = "#4D4D4D",
+              position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.6),
+              size = 1, alpha = 0.8) +
+  labs(x = "Treatment", y = "Colony Abundance") +
+  theme_bw() +
+  theme(
+    axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.title = element_blank(),
+    legend.position = "bottom"
+  )
 
 ###By Genus
 col.gen<-as.data.frame(urchin %>% 
