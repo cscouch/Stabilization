@@ -103,19 +103,24 @@ table(colony.new$Survey_Period,colony.new$Treatment)
 
 #Remove reference site data and calculate abudance/plot
 col.tot<-as.data.frame(colony.new %>% 
-                         #filter(Treatment!="Reference")   %>%
-                         filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
                          mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post Installation', Baseline = 'Baseline', T1_6mo_postoutplant =  'T1 (6months post-outplant)',T1_6mo_preoutplant =  'T1 (6months pre-outplant)'))%>%
                          group_by(Survey_Period, Treatment,Plot_ID) %>% 
                          summarise(n = n()))
 
-View(col.tot)
+#export plot-level summary data for statistical analyses
+write_csv(col.tot, here("data", "WildColony_PlotSummary.csv"))
+
+
+
+# Plotting total colony data ----------------------------------------------
 
 
 col.tot$Treatment <- factor(col.tot$Treatment, levels = c("Control", "Mesh", "Boulder","Reference"))
 col.tot$Survey_Period <- factor(col.tot$Survey_Period, levels = c("Baseline","T0 Post Installation","T1 (6months pre-outplant)","T1 (6months post-outplant)"))
 
-ggplot(col.tot, aes(x = Treatment, y = n, fill = Survey_Period)) +
+
+ggplot(subset(col.tot, Survey_Period %in% c("T0 Post Installation","T1 (6months pre-outplant)")),
+              aes(x = Treatment, y = n, fill = Survey_Period)) +
   geom_boxplot(position = position_dodge(width = 0.8), outlier.shape = NA) +
   geom_jitter(color = "#4D4D4D",
               position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.6),
