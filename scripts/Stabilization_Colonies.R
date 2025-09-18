@@ -103,7 +103,7 @@ table(colony.new$Survey_Period,colony.new$Treatment)
 
 #Remove reference site data and calculate abudance/plot
 col.tot<-as.data.frame(colony.new %>% 
-                         filter(Treatment!="Reference")   %>%
+                         #filter(Treatment!="Reference")   %>%
                          filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
                          mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post Installation', Baseline = 'Baseline', T1_6mo_postoutplant =  'T1 (6months post-outplant)',T1_6mo_preoutplant =  'T1 (6months pre-outplant)'))%>%
                          group_by(Survey_Period, Treatment,Plot_ID) %>% 
@@ -112,7 +112,7 @@ col.tot<-as.data.frame(colony.new %>%
 View(col.tot)
 
 
-col.tot$Treatment <- factor(col.tot$Treatment, levels = c("Control", "Mesh", "Boulder"))
+col.tot$Treatment <- factor(col.tot$Treatment, levels = c("Control", "Mesh", "Boulder","Reference"))
 col.tot$Survey_Period <- factor(col.tot$Survey_Period, levels = c("Baseline","T0 Post Installation","T1 (6months pre-outplant)","T1 (6months post-outplant)"))
 
 ggplot(col.tot, aes(x = Treatment, y = n, fill = Survey_Period)) +
@@ -133,6 +133,10 @@ ggplot(col.tot, aes(x = Treatment, y = n, fill = Survey_Period)) +
     legend.title = element_blank(),
     legend.position = "bottom"
   )
+
+ggsave(filename = here("plots", "WildCoralAbun_postinstall_6mo.jpg"),
+       plot = last_plot(),                                
+       width = 8.5, height = 6, units = "in", dpi = 300)
 
 
 
