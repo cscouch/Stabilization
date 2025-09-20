@@ -9,10 +9,11 @@ library(tidybayes)
 
 #LOAD DATA
 urchin<-read_csv(here("data","Stablization_Urchins_T0-6monthPO.csv")) #use this for all ggsave, write
-# urchin<- urchin %>% 
-#   rename(SPCODE=Species) %>%
-#   #mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0', Baseline = 'Baseline', T1_6months =  'T1 (6months)'))%>%
-#   left_join(lu)
+sa<-read_csv(here("data","Stablization_SA_T0-6monthPO.csv"))
+
+#Clean-up
+sa<-select(sa,c(Survey_Period,Plot_ID,Treatment,SArea,Rugosity,Height))
+sa$Plot_ID<-as.factor(sa$Plot_ID)
 
 levels(as.factor(urchin$Survey_Period))
 levels(as.factor(urchin$Plot_ID))
@@ -40,10 +41,14 @@ urchin.new<-rbind(pi.c,t1pre.c,urchin)
 table(urchin.new$Survey_Period,urchin.new$Treatment)
 
 #Remove reference site data and calculate abudance/plot
-col.tot<-as.data.frame(urchin.new %>% 
-                         #filter(Treatment!="Reference")   %>%                      
+col.tot<-as.data.frame(colony.new %>% 
                          group_by(Survey_Period, Treatment,Plot_ID) %>% 
-                         summarise(n = n()))
+                         summarise(ColAbun = n())%>%
+                         left_join(.,sa)%>%
+                         mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post Installation', Baseline = 'Baseline',
+                                                       T1_6mo_postoutplant =  'T1 (6months post-outplant)',T1_6mo_preoutplant =  'T1 (6months pre-outplant)'),
+                                SArea = replace_na(SArea, 1),
+                                ColDen = ColAbun/SArea))
 
 View(col.tot)
 

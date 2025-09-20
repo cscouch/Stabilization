@@ -7,9 +7,15 @@ library(brms)
 library(tidybayes)
 
 
-#LOAD DATA
-colony_raw<-read_csv(here("data","Stablization_Colony_T0-6monthPO.csv")) #use this for all ggsave, write
-lu<-read_csv(here("data","Genus_lookup.csv")) #use this for all ggsave, write
+#LOAD DATA & LOOK-UP tables
+colony_raw<-read_csv(here("data","Stablization_Colony_T0-6monthPO.csv")) 
+lu<-read_csv(here("data","Genus_lookup.csv")) 
+sa<-read_csv(here("data","Stablization_SA_T0-6monthPO.csv"))
+
+#Clean-up
+sa<-select(sa,c(Survey_Period,Plot_ID,Treatment,SArea,Rugosity,Height))
+colony_raw$Plot_ID<-as.factor(colony_raw$Plot_ID)
+sa$Plot_ID<-as.factor(sa$Plot_ID)
 
 colony<- colony_raw %>%
   rename(SPCODE=Species) %>%
@@ -41,71 +47,16 @@ table(colony.new$Survey_Period,colony.new$Treatment)
 
 
 
-
-# Bayesian ----------------------------------------------------------------
-
-# 
-# #Bayesian 2 way anova #Rhat and ESS 1st pass at diagnostics- did models converge reead up on additional dianotics
-# #Remove reference site data and calculate abudance/plot
-# col.tot<-as.data.frame(colony.new %>% 
-#                          #filter(Treatment!="Reference")   %>%
-#                          #filter(Survey_Period %in% c("T0_Post_Installation","T1_6mo_preoutplant")) %>%
-#                          group_by(Survey_Period, Treatment,Plot_ID) %>% 
-#                          summarise(n = n()))
-# 
-# 
-# mod1<-brm(n~Treatment*Survey_Period + (1|Plot_ID),data=col.tot)
-# #plot(conditional_effects(mod1)) #plots with effect sizes, plot raw data in the background with low alpha
-# #try log transformation
-# #model slection 
-# #loo(mod1, mod2) - report elpd_loo
-# #plot density plot of each treatment- look in tidybayes
-# 
-# ranef(mod1)#plot effects
-# #modify the map to color by intercept
-# #standardize all response variables on z scores to be able to compare across metrics 
-# #standardized effect size for each metrics in one plot with standardized data then 
-
-#Stats
-# library(car)
-# 
-# col.tot$sqrt_abun<-sqrt(col.tot$n)
-# mod <- aov(sqrt_abun ~ Survey_Period * Treatment, data = col.tot)
-# plot(mod, which = 2)
-# qqPlot(mod$residuals,id = FALSE)
-# hist(mod$residuals)
-# leveneTest(mod)
-# 
-# mod <- aov(sqrt_abun ~ Survey_Period * Treatment, data = col.tot)
-# 
-# library(lme4)
-# mod1<-glmer(n~Survey_Period * Treatment+(1|Plot_ID), family="poisson",data=col.tot)
-# nullmod<-glmer(n~Survey_Period * Treatment+(1|Plot_ID), family="poisson",data=col.tot)
-# anova(mod1,nullmod)
-# 
-# mod1<-glmer(n~Survey_Period * Treatment+(1|Plot_ID), family="poisson",data=col.tot)
-# mod2<-glmer(n~Survey_Period+(1|Plot_ID), family="poisson",data=col.tot)
-# anova(mod1,mod2)
-# 
-# mod1<-glmer(n~Survey_Period * Treatment+(1|Plot_ID), family="poisson",data=col.tot)
-# mod3<-glmer(n~Treatment+(1|Plot_ID), family="poisson",data=col.tot)
-# anova(mod1,mod3)
-# 
-# col.tot<-subset(col.tot, Treatment=="Boulder")
-# mod1<-glmer(n~Survey_Period +(1|Plot_ID), family="poisson",data=col.tot)
-# 
-# library(emmeans)
-# emmeans(mod1, list(pairwise ~ Survey_Period), adjust = "tukey")
-# 
-# 
-# 1-logLik(mod1)/logLik(nullmod) # Calculate McFadden's R2 =0.3081
-
-
-#Remove reference site data and calculate abudance/plot
+#Calculate colony abudnance, merge SA data and calculate density
 col.tot<-as.data.frame(colony.new %>% 
-                         mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post Installation', Baseline = 'Baseline', T1_6mo_postoutplant =  'T1 (6months post-outplant)',T1_6mo_preoutplant =  'T1 (6months pre-outplant)'))%>%
                          group_by(Survey_Period, Treatment,Plot_ID) %>% 
-                         summarise(n = n()))
+                         summarise(ColAbun = n())%>%
+                         left_join(.,sa)%>%
+                         mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post Installation', Baseline = 'Baseline',
+                                                       T1_6mo_postoutplant =  'T1 (6months post-outplant)',T1_6mo_preoutplant =  'T1 (6months pre-outplant)'),
+                         SArea = replace_na(SArea, 1),
+                         ColDen = ColAbun/SArea))
+
 
 #export plot-level summary data for statistical analyses
 write_csv(col.tot, here("data", "WildColony_PlotSummary.csv"))
@@ -120,12 +71,12 @@ col.tot$Survey_Period <- factor(col.tot$Survey_Period, levels = c("Baseline","T0
 
 
 ggplot(subset(col.tot, Survey_Period %in% c("T0 Post Installation","T1 (6months pre-outplant)")),
-              aes(x = Treatment, y = n, fill = Survey_Period)) +
+              aes(x = Treatment, y = ColDen, fill = Survey_Period)) +
   geom_boxplot(position = position_dodge(width = 0.8), outlier.shape = NA) +
   geom_jitter(color = "#4D4D4D",
               position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.6),
               size = 1, alpha = 0.8) +
-  labs(x = "Treatment", y = "Colony Abundance") +
+  labs(x = "Treatment", y = "Colony Density") +
   theme_bw() +
   theme(
     axis.line = element_line(colour = "black"),
@@ -139,7 +90,7 @@ ggplot(subset(col.tot, Survey_Period %in% c("T0 Post Installation","T1 (6months 
     legend.position = "bottom"
   )
 
-ggsave(filename = here("plots", "WildCoralAbun_postinstall_6mo.jpg"),
+ggsave(filename = here("plots", "WildCoralDen_postinstall_6mo.jpg"),
        plot = last_plot(),                                
        width = 8.5, height = 6, units = "in", dpi = 300)
 

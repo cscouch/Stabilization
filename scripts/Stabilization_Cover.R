@@ -1,27 +1,30 @@
-
-rm(list=ls())
-dir = Sys.info()[7]
-setwd(paste0("C:/Users/", dir, "/Documents/GitHub/Restoration/Stabilization/"))
-
-library(dplyr)
-library(ggplot2)
+#Script summarizes wild colonies on experimental and reference site
+#manually restart R
+library(tidyverse)
+library(here)
 library(ggridges)
+library(brms)
+library(tidybayes)
 
 
-#LOAD DATA
-cover<-read.csv("Stablization_Cover_T0-6monthPO.csv")
+#LOAD DATA & LOOK-UP tables
+cover_raw<-read_csv(here("data","Stablization_Cover_T0-6monthPO.csv")) 
+lu<-read_csv(here("data","All_Photoquad_codes.csv")) 
 
 
-levels(as.factor(cover$Survey_Period))
-levels(as.factor(cover$Plot_ID))
+#Modify Substrate Type to add unconsolidated
+cover_raw <- cover_raw %>%
+  mutate(Substrate_Type2 = case_when(Benthic_Code %in% c("PEB", "SAND") ~ "Unconsolidated",TRUE ~ Substrate_Type),
+         Substrate_Type2 = case_when(Substrate_Type2 %in% c("Rubble") ~ "Unconsolidated",TRUE ~ Substrate_Type2))
 
-table(cover$Survey_Period,cover$Treatment)
 
-tmp<- subset(cover,Treatment=="Reference" & Survey_Period=="T1_6mo_preoutplant")
-table(tmp$Plot_ID)
+#calculate % unconsolidate and hard substrate
+hard_soft_cover <- cover_raw %>%
+  group_by(Survey_Period, Treatment,Plot_ID,Substrate_Type2) %>% 
+  summarise(count = n(), .groups = "drop_last") %>%
+  mutate(percent = (count / 60) * 100)
 
-tmp2<- subset(cover,Treatment=="Reference" & Survey_Period=="T1_6mo_postoutplant")
-table(tmp2$Plot_ID)
+
 
 
 # Use baseline control data for post-installation control
