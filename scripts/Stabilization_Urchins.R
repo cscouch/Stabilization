@@ -41,35 +41,40 @@ urchin.new<-rbind(pi.c,t1pre.c,urchin)
 table(urchin.new$Survey_Period,urchin.new$Treatment)
 
 #Remove reference site data and calculate abudance/plot
-col.tot<-as.data.frame(colony.new %>% 
+urchin.tot<-as.data.frame(urchin.new %>% 
                          group_by(Survey_Period, Treatment,Plot_ID) %>% 
-                         summarise(ColAbun = n())%>%
+                         summarise(UrchinAbun = n())%>%
                          left_join(.,sa)%>%
-                         mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post Installation', Baseline = 'Baseline',
+                         mutate(Survey_Period = recode(Survey_Period, T0_Post_Installation = 'T0 Post-Installation', Baseline = 'Baseline',
                                                        T1_6mo_postoutplant =  'T1 (6months post-outplant)',T1_6mo_preoutplant =  'T1 (6months pre-outplant)'),
                                 SArea = replace_na(SArea, 1),
-                                ColDen = ColAbun/SArea))
+                                UrchinDen = UrchinAbun/SArea))
 
-View(col.tot)
+View(urchin.tot)
+
+#Calcuate mean and SE col den by treatment and survey period
+urchinden.mean<-urchin.tot %>%
+  group_by(Survey_Period, Treatment) %>%
+  summarise(Mean.urchinden = mean(UrchinDen,na.rm= TRUE),
+            se = sd(UrchinDen, na.rm = TRUE) / sqrt(n()))
+
+filter(urchinden.mean,Treatment=="Boulder") #3.34 fold increase in colonies at Boulder piles between T0 and T1
 
 
 
 #Plotting Urchin abundance for first 2 time points
 
-col.tot$Treatment <- factor(col.tot$Treatment, levels = c("Control", "Mesh", "Boulder","Reference"))
-col.tot$Survey_Period <- factor(col.tot$Survey_Period, levels = c("Baseline","T0_Post_Installation","T1_6mo_preoutplant","T1_6mo_postoutplant"))
-col.tot$T_SP<-as.factor(paste(col.tot$Survey_Period,col.tot$Treatment,sep="_"))
+urchin.tot$Treatment <- factor(urchin.tot$Treatment, levels = c("Control", "Mesh", "Boulder","Reference"))
+urchin.tot$Survey_Period <- factor(urchin.tot$Survey_Period, levels = c("Baseline","T0 Post-Installation","T1 (6months pre-outplant)","T1 (6months post-outplant)"))
+urchin.tot$T_SP<-as.factor(paste(urchin.tot$Survey_Period,urchin.tot$Treatment,sep="_"))
   
-col.tot %>%
-  filter(Survey_Period %in% c("Baseline","T1_6mo_preoutplant")) %>%
-  mutate(Survey_Period = recode(Survey_Period, Baseline = 'Baseline', T1_6mo_preoutplant =  'T1 (6months)'))%>%
-  filter(T_SP !="Baseline_Reference") %>%
-ggplot(., aes(x = Treatment, y = n, fill = Survey_Period)) +
-  geom_boxplot(position = position_dodge(width = 0.6), outlier.shape = NA) +
+ggplot(subset(urchin.tot, Survey_Period %in% c("T0 Post-Installation","T1 (6months pre-outplant)")),
+       aes(x = Treatment, y = UrchinDen, fill = Survey_Period)) +
+  geom_boxplot(position = position_dodge(width = 0.8), outlier.shape = NA) +
   geom_jitter(color = "#4D4D4D",
               position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.6),
               size = 1, alpha = 0.8) +
-  labs(x = "Treatment", y = "Colony Abundance") +
+  labs(x = "Treatment", y= expression(bold("Urchins per m"^2))) +
   theme_bw() +
   theme(
     axis.line = element_line(colour = "black"),
@@ -77,11 +82,18 @@ ggplot(., aes(x = Treatment, y = n, fill = Survey_Period)) +
     panel.grid.minor = element_blank(),
     panel.border = element_blank(),
     panel.background = element_blank(),
-    axis.text = element_text(size = 12),
-    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 16, face = "bold"),
     legend.title = element_blank(),
-    legend.position = "bottom"
-  )
+    legend.position = "bottom",
+    legend.text = element_text(size = 14),         # increase legend text size
+    legend.key.size = unit(1.2, "cm"),             # increase legend symbol size
+    legend.spacing.x = unit(0.4, "cm"))
+
+ggsave(filename = here("plots", "UrchinDen_postinstall_6mo.jpg"),
+       plot = last_plot(),                                
+       width = 8.5, height = 6, units = "in", dpi = 300)
+
 
 ###By Genus
 col.gen<-as.data.frame(urchin %>% 

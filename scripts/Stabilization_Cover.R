@@ -9,49 +9,103 @@ library(tidybayes)
 
 #LOAD DATA & LOOK-UP tables
 cover_raw<-read_csv(here("data","Stablization_Cover_T0-6monthPO.csv")) 
-lu<-read_csv(here("data","All_Photoquad_codes.csv")) 
+lu<-read_csv(here("data","Stabilization_Benthic_Cover_Codes.csv")) 
 
+
+#Remove bare MESH and CEM from calculations -treating these like we do Tape, wand, shaddow in our normal benthic cover data
+cover_new <- cover_raw %>%
+  filter(!Benthic_Code %in% c("MESH","CEM"))
 
 #Modify Substrate Type to add unconsolidated
-cover_raw <- cover_raw %>%
+cover_new <- cover_new %>%
   mutate(Substrate_Type2 = case_when(Benthic_Code %in% c("PEB", "SAND") ~ "Unconsolidated",TRUE ~ Substrate_Type),
-         Substrate_Type2 = case_when(Substrate_Type2 %in% c("Rubble") ~ "Unconsolidated",TRUE ~ Substrate_Type2))
+         Substrate_Type2 = case_when(Substrate_Type2 %in% c("Rubble") ~ "Unconsolidated",TRUE ~ Substrate_Type2))%>%
+  rename(CODE = Benthic_Code)%>%
+  left_join(lu)
+  
 
+head(cover_new)
 
-#calculate % unconsolidate and hard substrate
-hard_soft_cover <- cover_raw %>%
+#calculate % unconsolidated and hard substrate for site descriptors
+hard_soft_cover <- cover_new %>%
   group_by(Survey_Period, Treatment,Plot_ID,Substrate_Type2) %>% 
   summarise(count = n(), .groups = "drop_last") %>%
-  mutate(percent = (count / 60) * 100)
+  mutate(total_points = sum(count),percent = (count / total_points) * 100) %>% # total rows per Survey_Period × Treatment
+  ungroup()
 
+per_soft<-hard_soft_cover %>%
+  filter(Substrate_Type2 =="Unconsolidated", Survey_Period=="Baseline")%>% 
+  mutate(Treatment2 = recode(Treatment,
+                             Reference = "Reference",
+                             Boulder = "Experimental",
+                             Mesh = "Experimental",
+                             Control = "Experimental")) %>%
+  group_by(Treatment2) %>%
+  summarise(Mean.cover = mean(percent,na.rm= TRUE),
+            se = sd(percent, na.rm = TRUE) / sqrt(n()))
+
+per_soft
+
+
+#Summarize by Tier 1
+tier1_cover <- cover_new %>%
+  group_by(Survey_Period, Treatment,Plot_ID,TIER_1) %>% 
+  summarise(count = n(), .groups = "drop_last") %>%
+  mutate(total_points = sum(count),percent = (count / total_points) * 100) %>% # total rows per Survey_Period × Treatment
+  ungroup()
+
+per_tier1<-tier1_cover %>%
+  filter(Survey_Period=="Baseline")%>% 
+  mutate(Treatment2 = recode(Treatment,
+                             Reference = "Reference",
+                             Boulder = "Experimental",
+                             Mesh = "Experimental",
+                             Control = "Experimental")) %>%
+  group_by(Treatment2,TIER_1) %>%
+  summarise(Mean.cover = mean(percent,na.rm= TRUE),
+            se = sd(percent, na.rm = TRUE) / sqrt(n()))
+
+per_tier1
 
 
 
 # Use baseline control data for post-installation control
-pi.c<-cover %>% filter((Survey_Period=="Baseline") & (Treatment=="Control"))
+pi.c<-cover_raw %>% filter((Survey_Period=="Baseline") & (Treatment=="Control"))
 pi.c$Survey_Period <-"T0_Post_Installation"
 
 # Use preoutplant control data for postoutplant control
-t1pre.c<-cover %>% filter((Survey_Period=="T1_6mo_preoutplant") & (Treatment=="Control"))
+t1pre.c<-cover_raw %>% filter((Survey_Period=="T1_6mo_preoutplant") & (Treatment=="Control"))
 t1pre.c$Survey_Period <-"T1_6mo_postoutplant"
 
 #Combine into dataframe
-cover.new<-rbind(pi.c,t1pre.c,cover)
+cover.new<-rbind(pi.c,t1pre.c,cover_raw)
 
 table(cover.new$Survey_Period,cover.new$Treatment)
 
 
 #Calculate mean rubble size during baseline surveys
-rs.baseline<-as.data.frame(cover %>% 
-                         filter(Treatment!="Reference")   %>% 
+rs.baseline<-cover_raw %>% 
                          filter(Survey_Period=="Baseline")   %>% 
-                         group_by(Plot_ID) %>% 
-                         summarise(mean.size = mean(Rubble_Size,na.rm=TRUE)))
+                         mutate(Treatment2 = recode(Treatment,
+                                                      Reference = "Reference",
+                                                      Boulder = "Experimental",
+                                                      Mesh = "Experimental",
+                                                     Control = "Experimental")) %>%
+                         group_by(Treatment2,Plot_ID) %>% 
+                         summarise(mean.size = mean(Rubble_Size,na.rm=TRUE),.groups = "drop") %>%
+                           mutate(mean.size = ifelse(is.nan(mean.size), NA, mean.size)) 
 
-rs.mean<-as.data.frame(rs.baseline %>% 
-                         summarise_each(funs(mean,se=sd(mean.size)/sqrt(n()))))
+#summarize at experimental and reference site
+e.r_baseline<- rs.baseline %>%
+  group_by(Treatment2) %>%
+  summarise(
+    Mean_size = mean(mean.size,na.rm=TRUE),
+    n_nonmiss = sum(!is.na(mean.size)),
+    sd_check = sd(mean.size, na.rm = TRUE),
+    se = sd_check/ sqrt(n_nonmiss))
 
-rs.mean
+
+e.r_baseline
 #Remove reference site data and calculate abudance/plot
 col.tot<-as.data.frame(cover.new %>% 
                          #filter(Treatment!="Reference")   %>%                      

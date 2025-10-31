@@ -57,6 +57,13 @@ col.tot<-as.data.frame(colony.new %>%
                          SArea = replace_na(SArea, 1),
                          ColDen = ColAbun/SArea))
 
+#Calcuate mean and SE col den by treatment and survey period
+colden.mean<-col.tot %>%
+  group_by(Survey_Period, Treatment) %>%
+  summarise(Mean.colden = mean(ColDen,na.rm= TRUE),
+            se = sd(ColDen, na.rm = TRUE) / sqrt(n()))
+
+filter(colden.mean,Treatment=="Boulder") #1.93 fold increase in colonies at Boulder piles between T0 and T1
 
 #export plot-level summary data for statistical analyses
 write_csv(col.tot, here("data", "WildColony_PlotSummary.csv"))
@@ -76,7 +83,7 @@ ggplot(subset(col.tot, Survey_Period %in% c("T0 Post Installation","T1 (6months 
   geom_jitter(color = "#4D4D4D",
               position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.6),
               size = 1, alpha = 0.8) +
-  labs(x = "Treatment", y = "Colony Density") +
+  labs(x = "Treatment", y= expression(bold("Wild Colonies per m"^2))) +
   theme_bw() +
   theme(
     axis.line = element_line(colour = "black"),
@@ -84,11 +91,13 @@ ggplot(subset(col.tot, Survey_Period %in% c("T0 Post Installation","T1 (6months 
     panel.grid.minor = element_blank(),
     panel.border = element_blank(),
     panel.background = element_blank(),
-    axis.text = element_text(size = 12),
-    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 16, face = "bold"),
     legend.title = element_blank(),
-    legend.position = "bottom"
-  )
+    legend.position = "bottom",
+    legend.text = element_text(size = 14),         # increase legend text size
+    legend.key.size = unit(1.2, "cm"),             # increase legend symbol size
+    legend.spacing.x = unit(0.4, "cm"))
 
 ggsave(filename = here("plots", "WildCoralDen_postinstall_6mo.jpg"),
        plot = last_plot(),                                
